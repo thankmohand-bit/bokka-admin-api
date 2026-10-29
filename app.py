@@ -278,3 +278,33 @@ def delete_account(account_id):
         return jsonify({
             "error": "Database operation failed"
         }), 500
+@app.route("/api/demo/accounts/<account_number>", methods=["GET"])
+def get_demo_account(account_number):
+    if not re.fullmatch(r"[0-9]{7}", account_number):
+        return jsonify({"error": "Invalid demo account number"}), 400
+
+    try:
+        init_db()
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT username, account_number, balance, is_blocked
+                    FROM demo_accounts
+                    WHERE account_number = %s
+                    LIMIT 1
+                """, (account_number,))
+                row = cur.fetchone()
+
+        if row is None:
+            return jsonify({"type": "demo", "found": False}), 404
+
+        row["balance"] = str(row["balance"])
+        return jsonify({
+            "type": "demo",
+            "found": True,
+            "account": row
+        })
+
+    except Exception:
+        app.logger.exception("Demo account lookup failed")
+        return jsonify({"error": "Demo account lookup failed"}), 500
