@@ -100,7 +100,9 @@ def list_accounts():
 
     except Exception:
         app.logger.exception("Could not list accounts")
-        return jsonify({"error": "Database operation failed"}), 500
+        return jsonify({
+            "error": "Database operation failed"
+        }), 500
 
 
 @app.route("/api/admin/accounts", methods=["POST"])
@@ -108,7 +110,9 @@ def add_account():
     data = request.get_json(silent=True) or {}
 
     username = str(data.get("username", "")).strip()
-    account_number = str(data.get("account_number", "")).strip()
+    account_number = str(
+        data.get("account_number", "")
+    ).strip()
 
     if not username or not account_number:
         return jsonify({
@@ -149,11 +153,15 @@ def add_account():
 
     except Exception:
         app.logger.exception("Could not add account")
-        return jsonify({"error": "Database operation failed"}), 500
+        return jsonify({
+            "error": "Database operation failed"
+        }), 500
 
 
-@app.route("/api/admin/accounts/<int:account_id>/balance",
-           methods=["PATCH"])
+@app.route(
+    "/api/admin/accounts/<int:account_id>/balance",
+    methods=["PATCH"]
+)
 def update_balance(account_id):
     data = request.get_json(silent=True) or {}
 
@@ -188,11 +196,15 @@ def update_balance(account_id):
 
     except Exception:
         app.logger.exception("Could not update balance")
-        return jsonify({"error": "Database operation failed"}), 500
+        return jsonify({
+            "error": "Database operation failed"
+        }), 500
 
 
-@app.route("/api/admin/accounts/<int:account_id>/block",
-           methods=["PATCH"])
+@app.route(
+    "/api/admin/accounts/<int:account_id>/block",
+    methods=["PATCH"]
+)
 def block_account(account_id):
     data = request.get_json(silent=True) or {}
     blocked = data.get("blocked")
@@ -223,11 +235,15 @@ def block_account(account_id):
 
     except Exception:
         app.logger.exception("Could not change block status")
-        return jsonify({"error": "Database operation failed"}), 500
+        return jsonify({
+            "error": "Database operation failed"
+        }), 500
 
 
-@app.route("/api/admin/accounts/<int:account_id>",
-           methods=["DELETE"])
+@app.route(
+    "/api/admin/accounts/<int:account_id>",
+    methods=["DELETE"]
+)
 def delete_account(account_id):
     try:
         init_db()
@@ -252,4 +268,6 @@ def delete_account(account_id):
 
     except Exception:
         app.logger.exception("Could not delete account")
-        return jsonify({"error": "Database
+        return jsonify({
+            "error": "Database operation failed"
+        }), 500
