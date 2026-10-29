@@ -1,4 +1,5 @@
 import os
+import re
 from decimal import Decimal, InvalidOperation
 
 import psycopg2
@@ -54,9 +55,7 @@ def authorized():
 def protect_admin_operations():
     if request.path.startswith("/api/admin/"):
         if not authorized():
-            return jsonify({
-                "error": "Unauthorized"
-            }), 401
+            return jsonify({"error": "Unauthorized"}), 401
 
 
 @app.route("/")
@@ -114,9 +113,15 @@ def add_account():
         data.get("account_number", "")
     ).strip()
 
-    if not username or not account_number:
+    if not username:
         return jsonify({
-            "error": "Username and account number are required"
+            "error": "Username is required"
+        }), 400
+
+    # رقم الحساب يجب أن يتكون من 7 أرقام بالضبط
+    if not re.fullmatch(r"[0-9]{7}", account_number):
+        return jsonify({
+            "error": "Account number must contain exactly 7 digits"
         }), 400
 
     try:
@@ -126,7 +131,9 @@ def add_account():
             raise InvalidOperation
 
     except (InvalidOperation, ValueError):
-        return jsonify({"error": "Invalid balance"}), 400
+        return jsonify({
+            "error": "Invalid balance"
+        }), 400
 
     try:
         init_db()
