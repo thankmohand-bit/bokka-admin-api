@@ -1,10 +1,12 @@
 import os
 import re
+import secrets
 from decimal import Decimal, InvalidOperation
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import Flask, jsonify, request, send_from_directory
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
@@ -15,7 +17,6 @@ ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
 def get_db():
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL is not configured")
-
     return psycopg2.connect(
         DATABASE_URL,
         cursor_factory=RealDictCursor
@@ -31,6 +32,7 @@ def init_db():
                     username TEXT NOT NULL UNIQUE,
                     account_number TEXT NOT NULL UNIQUE,
                     balance NUMERIC(14, 2) NOT NULL DEFAULT 0,
+                    password_hash TEXT,
                     is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -42,25 +44,31 @@ def init_db():
                 is_blocked BOOLEAN NOT NULL DEFAULT FALSE
             """)
 
+            cur.execute("""
+                ALTER TABLE demo_accounts
+                ADD COLUMN IF NOT EXISTS password_hash TEXT
+            """)
+
 
 def authorized():
-    if not ADMIN_TOKEN:
-        return False
-
     supplied = request.headers.get("Authorization", "")
-    return supplied == f"Bearer {ADMIN_TOKEN}"
+    return bool(ADMIN_TOKEN) and supplied == f"Bearer {ADMIN_TOKEN}"
 
 
 @app.before_request
 def protect_admin_operations():
-    if request.path.startswith("/api/admin/"):
-        if not authorized():
-            return jsonify({"error": "Unauthorized"}), 401
+    if request.path.startswith("/api/admin/") and not authorized():
+        return jsonify({"error": "Unauthorized"}), 401
 
 
 @app.route("/")
 def home():
     return send_from_directory(".", "admin.html")
+
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
 
 
 @app.route("/api/status")
@@ -71,21 +79,20 @@ def status():
     })
 
 
-@app.route("/health")
-def health():
-    return jsonify({"status": "ok"})
-
-
 @app.route("/api/accounts", methods=["GET"])
 def list_accounts():
+
+    if not authorized():
+        return jsonify({"error": "Unauthorized"}), 401
+
     try:
         init_db()
 
         with get_db() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT id, username, account_number,
-                           balance, is_blocked, created_at
+                    SELECT id, username, account_number, balance,
+                           is_blocked, created_at
                     FROM demo_accounts
                     ORDER BY id DESC
                 """)
@@ -106,21 +113,20 @@ def list_accounts():
 
 @app.route("/api/admin/accounts", methods=["POST"])
 def add_account():
+
     data = request.get_json(silent=True) or {}
 
     username = str(data.get("username", "")).strip()
-    account_number = str(
-        data.get("account_number", "")
-    ).strip()
+    password = str(data.get("password", ""))
 
     if not username:
         return jsonify({
-            "error": "Username is required"
+            "error": "أدخل اسم المستخدم"
         }), 400
 
-    if not re.fullmatch(r"[0-9]{7}", account_number):
+    if len(password) < 6:
         return jsonify({
-            "error": "Account number must contain exactly 7 digits"
+            "error": "كلمة المرور يجب أن تكون 6 أحرف على الأقل"
         }), 400
 
     try:
@@ -137,22 +143,50 @@ def add_account():
 
         with get_db() as conn:
             with conn.cursor() as cur:
+
+                account_number = None
+
+                for _ in range(50):
+                    candidate = str(
+                        secrets.randbelow(9000000) + 1000000
+                    )
+
+                    cur.execute("""
+                        SELECT 1 FROM demo_accounts
+                        WHERE account_number = %s
+                    """, (candidate,))
+
+                    if cur.fetchone() is None:
+                        account_number = candidate
+                        break
+
+                if account_number is None:
+                    return jsonify({
+                        "error": "تعذر توليد رقم حساب، حاول مرة أخرى"
+                    }), 503
+
                 cur.execute("""
                     INSERT INTO demo_accounts
-                    (username, account_number, balance)
-                    VALUES (%s, %s, %s)
+                    (username, account_number, balance, password_hash)
+                    VALUES (%s, %s, %s, %s)
                     RETURNING id, username, account_number,
                               balance, is_blocked
-                """, (username, account_number, balance))
+                """, (
+                    username,
+                    account_number,
+                    balance,
+                    generate_password_hash(password)
+                ))
 
                 row = cur.fetchone()
 
         row["balance"] = str(row["balance"])
+
         return jsonify(row), 201
 
     except psycopg2.errors.UniqueViolation:
         return jsonify({
-            "error": "Username or account number already exists"
+            "error": "اسم المستخدم موجود مسبقاً"
         }), 409
 
     except Exception:
@@ -162,11 +196,72 @@ def add_account():
         }), 500
 
 
+@app.route("/api/demo/login", methods=["POST"])
+def demo_login():
+
+    data = request.get_json(silent=True) or {}
+
+    account_number = str(
+        data.get("account_number", "")
+    ).strip()
+
+    password = str(data.get("password", ""))
+
+    if not re.fullmatch(r"[0-9]{7}", account_number) or not password:
+        return jsonify({
+            "success": False,
+            "message": "بيانات الدخول غير صحيحة"
+        }), 400
+
+    try:
+        init_db()
+
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT username, account_number,
+                           balance, is_blocked, password_hash
+                    FROM demo_accounts
+                    WHERE account_number = %s
+                    LIMIT 1
+                """, (account_number,))
+
+                row = cur.fetchone()
+
+        if (
+            row is None
+            or row["is_blocked"]
+            or not row["password_hash"]
+            or not check_password_hash(
+                row["password_hash"], password
+            )
+        ):
+            return jsonify({
+                "success": False,
+                "message": "رقم الحساب أو كلمة المرور غير صحيحة"
+            }), 401
+
+        return jsonify({
+            "success": True,
+            "username": row["username"],
+            "account_number": row["account_number"],
+            "balance": str(row["balance"])
+        })
+
+    except Exception:
+        app.logger.exception("Demo login failed")
+        return jsonify({
+            "success": False,
+            "message": "Login service unavailable"
+        }), 500
+
+
 @app.route(
     "/api/admin/accounts/<int:account_id>/balance",
     methods=["PATCH"]
 )
 def update_balance(account_id):
+
     data = request.get_json(silent=True) or {}
 
     try:
@@ -193,9 +288,12 @@ def update_balance(account_id):
                 row = cur.fetchone()
 
         if row is None:
-            return jsonify({"error": "Account not found"}), 404
+            return jsonify({
+                "error": "Account not found"
+            }), 404
 
         row["balance"] = str(row["balance"])
+
         return jsonify(row)
 
     except Exception:
@@ -210,6 +308,7 @@ def update_balance(account_id):
     methods=["PATCH"]
 )
 def block_account(account_id):
+
     data = request.get_json(silent=True) or {}
     blocked = data.get("blocked")
 
@@ -233,7 +332,9 @@ def block_account(account_id):
                 row = cur.fetchone()
 
         if row is None:
-            return jsonify({"error": "Account not found"}), 404
+            return jsonify({
+                "error": "Account not found"
+            }), 404
 
         return jsonify(row)
 
@@ -249,6 +350,7 @@ def block_account(account_id):
     methods=["DELETE"]
 )
 def delete_account(account_id):
+
     try:
         init_db()
 
@@ -263,7 +365,9 @@ def delete_account(account_id):
                 row = cur.fetchone()
 
         if row is None:
-            return jsonify({"error": "Account not found"}), 404
+            return jsonify({
+                "error": "Account not found"
+            }), 404
 
         return jsonify({
             "status": "success",
@@ -277,58 +381,7 @@ def delete_account(account_id):
         }), 500
 
 
-@app.route(
-    "/api/demo/accounts/<account_number>",
-    methods=["GET"]
-)
-def get_demo_account(account_number):
-    if not re.fullmatch(r"[0-9]{7}", account_number):
-        return jsonify({
-            "type": "demo",
-            "found": False
-        }), 400
-
-    try:
-        init_db()
-
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT username, account_number,
-                           balance, is_blocked
-                    FROM demo_accounts
-                    WHERE account_number = %s
-                    LIMIT 1
-                """, (account_number,))
-
-                row = cur.fetchone()
-
-        if row is None:
-            return jsonify({
-                "type": "demo",
-                "found": False
-            }), 404
-
-        row["balance"] = str(row["balance"])
-
-        return jsonify({
-            "type": "demo",
-            "found": True,
-            "account": row
-        })
-
-    except Exception:
-        app.logger.exception("Demo account lookup failed")
-        return jsonify({
-            "error": "Demo account lookup failed"
-        }), 500
-
-
-# BOK-MAR demo balance lookup
-@app.route(
-    "/api/fetch_balance.php",
-    methods=["POST"]
-)
+@app.route("/api/fetch_balance.php", methods=["POST"])
 def fetch_demo_balance():
 
     data = request.get_json(silent=True) or {}
