@@ -1,543 +1,729 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <title>BOKKA FOX | لوحة الإدارة</title>
 
 <style>
+
 :root {
-  --bg: #080e1c;
-  --panel: #121d30;
-  --panel2: #18263c;
-  --border: #293b55;
-  --text: #f1f5f9;
-  --muted: #9fb0c8;
-  --blue: #3b82f6;
-  --green: #16a34a;
-  --red: #dc2626;
-  --orange: #d97706;
+    --bg: #080e1c;
+    --panel: #121d30;
+    --panel2: #18263c;
+    --border: #293b55;
+    --text: #f1f5f9;
+    --muted: #9fb0c8;
+    --blue: #3b82f6;
+    --green: #16a34a;
+    --red: #dc2626;
+    --orange: #d97706;
 }
 
-* { box-sizing: border-box; }
+* {
+    box-sizing: border-box;
+}
 
 body {
-  margin: 0;
-  padding: 16px;
-  font-family: Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+    margin: 0;
+    padding: 16px;
+    font-family: Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
 }
 
 .container {
-  max-width: 950px;
-  margin: auto;
+    max-width: 950px;
+    margin: auto;
 }
 
 header {
-  padding: 22px 16px;
-  margin-bottom: 18px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: linear-gradient(135deg, #172b49, #111827);
-  text-align: center;
+    padding: 22px 16px;
+    margin-bottom: 18px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: linear-gradient(135deg, #172b49, #111827);
+    text-align: center;
 }
 
 .logo {
-  font-size: 30px;
-  font-weight: bold;
-  color: #60a5fa;
-  margin-bottom: 8px;
+    font-size: 30px;
+    font-weight: bold;
+    color: #60a5fa;
+    margin-bottom: 8px;
 }
 
 .subtitle {
-  color: var(--muted);
-  margin: 0;
+    color: var(--muted);
 }
 
 .card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 15px;
-  padding: 17px;
-  margin-bottom: 16px;
-  box-shadow: 0 5px 18px #00000020;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    padding: 17px;
+    margin-bottom: 16px;
 }
 
 h2 {
-  margin-top: 0;
-  color: #93c5fd;
-  font-size: 20px;
+    margin-top: 0;
+    color: #93c5fd;
+    font-size: 20px;
 }
 
 input, button {
-  width: 100%;
-  padding: 13px;
-  margin: 6px 0;
-  border-radius: 9px;
-  font-size: 15px;
+    width: 100%;
+    padding: 13px;
+    margin: 6px 0;
+    border-radius: 9px;
+    font-size: 15px;
 }
 
 input {
-  background: #080e1c;
-  color: white;
-  border: 1px solid #40536f;
-  outline: none;
-}
-
-input:focus {
-  border-color: var(--blue);
+    background: #080e1c;
+    color: white;
+    border: 1px solid #40536f;
 }
 
 button {
-  border: 0;
-  color: white;
-  background: var(--blue);
-  font-weight: bold;
-  cursor: pointer;
+    border: 0;
+    color: white;
+    background: var(--blue);
+    font-weight: bold;
+    cursor: pointer;
 }
 
-button:active {
-  opacity: .8;
+button.green {
+    background: var(--green);
 }
 
-button.green { background: var(--green); }
-button.red { background: var(--red); }
-button.orange { background: var(--orange); }
-button.gray { background: #475569; }
+button.red {
+    background: var(--red);
+}
+
+button.orange {
+    background: var(--orange);
+}
 
 .row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px;
 }
 
 .stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
 .stat {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  padding: 15px;
-  border-radius: 12px;
-  text-align: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 15px;
+    border-radius: 12px;
+    text-align: center;
 }
 
 .stat strong {
-  display: block;
-  font-size: 25px;
-  color: #60a5fa;
-  margin-bottom: 5px;
+    display: block;
+    font-size: 25px;
+    color: #60a5fa;
+    margin-bottom: 5px;
 }
 
 .muted {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.7;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
 }
 
 .account {
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 13px;
-  padding: 15px;
-  margin-top: 12px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    padding: 15px;
+    margin-top: 12px;
 }
 
 .account-title {
-  font-size: 18px;
-  font-weight: bold;
-  color: #e2e8f0;
-  overflow-wrap: anywhere;
+    font-size: 18px;
+    font-weight: bold;
+    overflow-wrap: anywhere;
 }
 
 .account-details {
-  color: var(--muted);
-  line-height: 1.9;
-  overflow-wrap: anywhere;
+    color: var(--muted);
+    line-height: 1.9;
+    overflow-wrap: anywhere;
 }
 
 .badge {
-  display: inline-block;
-  border-radius: 20px;
-  padding: 5px 10px;
-  font-size: 12px;
-  font-weight: bold;
-  margin: 8px 0;
+    display: inline-block;
+    border-radius: 20px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: bold;
+    margin: 8px 0;
 }
 
-.badge.active {
-  background: #14532d;
-  color: #bbf7d0;
+.active {
+    background: #14532d;
+    color: #bbf7d0;
 }
 
-.badge.blocked {
-  background: #7f1d1d;
-  color: #fecaca;
+.blocked {
+    background: #7f1d1d;
+    color: #fecaca;
 }
 
 .actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-  margin-top: 8px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 8px;
 }
 
 .actions button {
-  margin: 0;
-  padding: 12px 5px;
+    margin: 0;
+    padding: 12px 5px;
 }
 
 #message {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  line-height: 1.8;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.8;
 }
 
 @media (max-width: 420px) {
-  body { padding: 9px; }
-  .card { padding: 12px; }
-  .actions { grid-template-columns: 1fr; }
+    body {
+        padding: 9px;
+    }
+
+    .card {
+        padding: 12px;
+    }
+
+    .actions {
+        grid-template-columns: 1fr;
+    }
 }
+
 </style>
 </head>
 
 <body>
+
 <div class="container">
 
 <header>
-  <div class="logo">🦊 BOKKA FOX</div>
-  <p class="subtitle">لوحة الإدارة والتحكم بالحسابات التجريبية</p>
+    <div class="logo">🦊 BOKKA FOX</div>
+    <p class="subtitle">
+        لوحة الإدارة والتحكم بالحسابات التجريبية
+    </p>
 </header>
 
+
 <div class="stats">
-  <div class="stat">
-    <strong id="totalAccounts">0</strong>
-    إجمالي الحسابات
-  </div>
-  <div class="stat">
-    <strong id="blockedAccounts">0</strong>
-    الحسابات المحظورة
-  </div>
+
+    <div class="stat">
+        <strong id="totalAccounts">0</strong>
+        إجمالي الحسابات
+    </div>
+
+    <div class="stat">
+        <strong id="blockedAccounts">0</strong>
+        الحسابات المحظورة
+    </div>
+
 </div>
+
 
 <div class="card">
-  <h2>🌐 حالة الخادم</h2>
-  <p id="status">جارٍ فحص الخادم...</p>
-  <button onclick="checkServer()">اختبار الاتصال بالخادم</button>
+
+    <h2>🌐 حالة الخادم</h2>
+
+    <p id="status">جارٍ فحص الخادم...</p>
+
+    <button onclick="checkServer()">
+        اختبار الاتصال بالخادم
+    </button>
+
 </div>
+
 
 <div class="card">
-  <h2>🔐 مفتاح الإدارة</h2>
-  <input id="token" type="password"
-         placeholder="أدخل ADMIN_TOKEN"
-         autocomplete="off">
-  <button onclick="saveToken()">استخدام المفتاح</button>
-  <p class="muted">المفتاح يُحفظ في ذاكرة الصفحة الحالية فقط.</p>
+
+    <h2>🔐 مفتاح الإدارة</h2>
+
+    <input
+        id="token"
+        type="password"
+        placeholder="أدخل ADMIN_TOKEN"
+        autocomplete="off"
+    >
+
+    <button onclick="saveToken()">
+        استخدام المفتاح
+    </button>
+
+    <p class="muted">
+        المفتاح يُحفظ في ذاكرة الصفحة الحالية فقط.
+    </p>
+
 </div>
+
 
 <div class="card">
-  <h2>➕ إضافة حساب تجريبي</h2>
-  <div class="row">
-    <input id="username" placeholder="اسم المستخدم">
-    <input id="accountNumber"
-           placeholder="رقم الحساب - 7 أرقام"
-           inputmode="numeric"
-           maxlength="7">
-    <input id="balance" type="number" min="0" step="0.01"
-           placeholder="الرصيد التجريبي" value="0">
-  </div>
-  <button class="green" onclick="addAccount()">إضافة الحساب</button>
-  <p class="muted">
-    يجب أن يتكون رقم الحساب من 7 أرقام. الحسابات والأرصدة هنا تجريبية.
-  </p>
+
+    <h2>➕ إضافة حساب تجريبي</h2>
+
+    <div class="row">
+
+        <input
+            id="username"
+            placeholder="اسم المستخدم"
+            autocomplete="off"
+        >
+
+        <input
+            id="password"
+            type="password"
+            placeholder="كلمة مرور الدخول إلى MAR"
+            autocomplete="new-password"
+        >
+
+        <input
+            id="balance"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="الرصيد التجريبي"
+            value="0"
+        >
+
+    </div>
+
+    <button class="green" onclick="addAccount()">
+        إضافة الحساب
+    </button>
+
+    <p class="muted">
+        رقم الحساب المكوّن من 7 أرقام يُولّد تلقائياً.
+        مسؤول الأدمن هو من يحدد كلمة المرور.
+        الحسابات والأرصدة تجريبية.
+    </p>
+
 </div>
+
 
 <div class="card">
-  <h2>📋 إدارة الحسابات</h2>
-  <input id="search"
-         placeholder="🔎 ابحث باسم المستخدم أو رقم الحساب"
-         oninput="renderAccounts()">
-  <button onclick="loadAccounts()">تحديث الحسابات</button>
-  <div id="accounts">اضغط تحديث الحسابات لعرض القائمة.</div>
+
+    <h2>📋 إدارة الحسابات</h2>
+
+    <input
+        id="search"
+        placeholder="🔎 ابحث باسم المستخدم أو رقم الحساب"
+        oninput="renderAccounts()"
+    >
+
+    <button onclick="loadAccounts()">
+        تحديث الحسابات
+    </button>
+
+    <div id="accounts">
+        أدخل مفتاح الإدارة ثم اضغط تحديث الحسابات.
+    </div>
+
 </div>
+
 
 <div class="card">
-  <h2>📨 رسائل النظام</h2>
-  <p id="message">جاهز للعمل.</p>
+
+    <h2>📨 رسائل النظام</h2>
+
+    <p id="message">جاهز للعمل.</p>
+
 </div>
 
 </div>
+
 
 <script>
+
 const API = location.origin;
+
 let adminToken = "";
 let accounts = [];
 
+
 function msg(text) {
-  document.getElementById("message").textContent = text;
+
+    document.getElementById("message").textContent = text;
+
 }
+
 
 function saveToken() {
-  adminToken = document.getElementById("token").value.trim();
 
-  msg(adminToken
-    ? "تم إدخال المفتاح في ذاكرة الصفحة."
-    : "أدخل مفتاح الإدارة أولاً.");
+    adminToken = document.getElementById("token").value.trim();
+
+    msg(
+        adminToken
+        ? "تم إدخال المفتاح في ذاكرة الصفحة."
+        : "أدخل مفتاح الإدارة أولاً."
+    );
+
 }
+
 
 async function checkServer() {
-  const status = document.getElementById("status");
 
-  try {
-    const response = await fetch(API + "/api/status");
-    if (!response.ok) throw new Error();
+    try {
 
-    status.textContent = "🟢 الخادم يعمل بنجاح";
-  } catch (e) {
-    status.textContent = "🔴 تعذر الاتصال بالخادم";
-  }
+        const response = await fetch(API + "/api/status");
+
+        if (!response.ok) {
+            throw new Error();
+        }
+
+        document.getElementById("status").textContent =
+            "🟢 الخادم يعمل بنجاح";
+
+    } catch (e) {
+
+        document.getElementById("status").textContent =
+            "🔴 تعذر الاتصال بالخادم";
+
+    }
+
 }
+
 
 async function adminFetch(path, options = {}) {
-  if (!adminToken) {
-    throw new Error("أدخل مفتاح الإدارة أولاً.");
-  }
 
-  const headers = {
-    "Authorization": "Bearer " + adminToken,
-    ...(options.body ? {"Content-Type": "application/json"} : {}),
-    ...(options.headers || {})
-  };
-
-  const response = await fetch(API + path, {
-    ...options,
-    headers
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data.error || "حدث خطأ في الطلب.");
-  }
-
-  return data;
-}
-
-async function addAccount() {
-  try {
-    const username =
-      document.getElementById("username").value.trim();
-
-    const account_number =
-      document.getElementById("accountNumber").value.trim();
-
-    const balance =
-      document.getElementById("balance").value || "0";
-
-    if (!username) {
-      throw new Error("أدخل اسم المستخدم.");
+    if (!adminToken) {
+        throw new Error("أدخل مفتاح الإدارة أولاً.");
     }
 
-    if (!/^[0-9]{7}$/.test(account_number)) {
-      throw new Error("رقم الحساب يجب أن يتكون من 7 أرقام بالضبط.");
-    }
+    const headers = {
 
-    await adminFetch("/api/admin/accounts", {
-      method: "POST",
-      body: JSON.stringify({
-        username,
-        account_number,
-        balance
-      })
+        "Authorization": "Bearer " + adminToken,
+
+        ...(options.body
+            ? {"Content-Type": "application/json"}
+            : {}),
+
+        ...(options.headers || {})
+
+    };
+
+    const response = await fetch(API + path, {
+        ...options,
+        headers
     });
 
-    msg("✅ تمت إضافة الحساب التجريبي بنجاح.");
-
-    document.getElementById("username").value = "";
-    document.getElementById("accountNumber").value = "";
-    document.getElementById("balance").value = "0";
-
-    await loadAccounts();
-
-  } catch (e) {
-    msg("❌ " + e.message);
-  }
-}
-
-async function loadAccounts() {
-  try {
-    const response = await fetch(API + "/api/accounts");
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error("تعذر تحميل الحسابات.");
+        throw new Error(data.error || "حدث خطأ في الطلب.");
     }
 
-    accounts = await response.json();
+    return data;
 
-    renderAccounts();
-    msg("✅ تم تحديث قائمة الحسابات.");
-
-  } catch (e) {
-    msg("❌ " + e.message);
-  }
 }
+
+
+async function addAccount() {
+
+    try {
+
+        const username =
+            document.getElementById("username").value.trim();
+
+        const password =
+            document.getElementById("password").value;
+
+        const balance =
+            document.getElementById("balance").value || "0";
+
+
+        if (!username) {
+            throw new Error("أدخل اسم المستخدم.");
+        }
+
+        if (password.length < 6) {
+            throw new Error("كلمة المرور يجب ألا تقل عن 6 أحرف.");
+        }
+
+
+        const created = await adminFetch(
+            "/api/admin/accounts",
+            {
+                method: "POST",
+
+                body: JSON.stringify({
+                    username,
+                    password,
+                    balance
+                })
+            }
+        );
+
+
+        msg(
+            "✅ تم إنشاء الحساب.\n" +
+            "رقم الحساب الجديد: " +
+            created.account_number
+        );
+
+
+        document.getElementById("username").value = "";
+
+        document.getElementById("password").value = "";
+
+        document.getElementById("balance").value = "0";
+
+        await loadAccounts();
+
+    } catch (e) {
+
+        msg("❌ " + e.message);
+
+    }
+
+}
+
+
+async function loadAccounts() {
+
+    try {
+
+        accounts = await adminFetch("/api/accounts");
+
+        renderAccounts();
+
+        msg("✅ تم تحديث قائمة الحسابات.");
+
+    } catch (e) {
+
+        msg("❌ " + e.message);
+
+    }
+
+}
+
 
 function renderAccounts() {
-  const query =
-    document.getElementById("search").value.trim().toLowerCase();
 
-  const list = accounts.filter(a =>
-    String(a.username).toLowerCase().includes(query) ||
-    String(a.account_number).toLowerCase().includes(query)
-  );
+    const query =
+        document.getElementById("search").value.trim().toLowerCase();
 
-  document.getElementById("totalAccounts").textContent =
-    accounts.length;
 
-  document.getElementById("blockedAccounts").textContent =
-    accounts.filter(a => a.is_blocked).length;
+    const list = accounts.filter(a =>
 
-  const box = document.getElementById("accounts");
-  box.replaceChildren();
+        String(a.username).toLowerCase().includes(query) ||
 
-  if (!list.length) {
-    box.textContent = "لا توجد حسابات مطابقة.";
-    return;
-  }
+        String(a.account_number).includes(query)
 
-  list.forEach(a => {
-    const card = document.createElement("div");
-    card.className = "account";
-
-    const title = document.createElement("div");
-    title.className = "account-title";
-    title.textContent = "👤 " + a.username;
-    card.appendChild(title);
-
-    const badge = document.createElement("span");
-    badge.className = "badge " +
-      (a.is_blocked ? "blocked" : "active");
-
-    badge.textContent = a.is_blocked
-      ? "🔴 محظور"
-      : "🟢 نشط";
-
-    card.appendChild(badge);
-
-    const details = document.createElement("div");
-    details.className = "account-details";
-    details.textContent =
-      "رقم الحساب: " + a.account_number +
-      "\nالرصيد التجريبي: " + a.balance;
-
-    card.appendChild(details);
-
-    const balanceInput = document.createElement("input");
-    balanceInput.type = "number";
-    balanceInput.min = "0";
-    balanceInput.step = "0.01";
-    balanceInput.value = a.balance;
-    balanceInput.setAttribute(
-      "aria-label",
-      "الرصيد التجريبي الجديد"
     );
-    card.appendChild(balanceInput);
 
-    const actions = document.createElement("div");
-    actions.className = "actions";
 
-    const updateButton = document.createElement("button");
-    updateButton.className = "blue";
-    updateButton.textContent = "💰 تعديل الرصيد";
+    document.getElementById("totalAccounts").textContent =
+        accounts.length;
 
-    updateButton.onclick = async () => {
-      try {
-        await adminFetch(
-          "/api/admin/accounts/" + a.id + "/balance",
-          {
-            method: "PATCH",
-            body: JSON.stringify({
-              balance: balanceInput.value
-            })
-          }
-        );
 
-        msg("✅ تم تعديل الرصيد التجريبي.");
-        await loadAccounts();
+    document.getElementById("blockedAccounts").textContent =
+        accounts.filter(a => a.is_blocked).length;
 
-      } catch (e) {
-        msg("❌ " + e.message);
-      }
-    };
 
-    actions.appendChild(updateButton);
+    const box = document.getElementById("accounts");
 
-    const blockButton = document.createElement("button");
-    blockButton.className = a.is_blocked ? "green" : "orange";
-    blockButton.textContent = a.is_blocked
-      ? "🔓 فك الحظر"
-      : "🔒 حظر الحساب";
+    box.replaceChildren();
 
-    blockButton.onclick = async () => {
-      try {
-        await adminFetch(
-          "/api/admin/accounts/" + a.id + "/block",
-          {
-            method: "PATCH",
-            body: JSON.stringify({
-              blocked: !a.is_blocked
-            })
-          }
-        );
 
-        msg(a.is_blocked
-          ? "✅ تم فك الحظر."
-          : "✅ تم حظر الحساب التجريبي.");
+    if (!list.length) {
 
-        await loadAccounts();
+        box.textContent = "لا توجد حسابات مطابقة.";
 
-      } catch (e) {
-        msg("❌ " + e.message);
-      }
-    };
-
-    actions.appendChild(blockButton);
-
-    const deleteButton = document.createElement("button");
-    deleteButton.className = "red";
-    deleteButton.textContent = "🗑️ حذف الحساب";
-
-    deleteButton.onclick = async () => {
-      if (!confirm("هل تريد حذف هذا الحساب التجريبي نهائياً؟")) {
         return;
-      }
 
-      try {
-        await adminFetch(
-          "/api/admin/accounts/" + a.id,
-          {method: "DELETE"}
-        );
+    }
 
-        msg("✅ تم حذف الحساب التجريبي.");
-        await loadAccounts();
 
-      } catch (e) {
-        msg("❌ " + e.message);
-      }
-    };
+    list.forEach(a => {
 
-    actions.appendChild(deleteButton);
-    card.appendChild(actions);
-    box.appendChild(card);
-  });
+        const card = document.createElement("div");
+
+        card.className = "account";
+
+
+        const title = document.createElement("div");
+
+        title.className = "account-title";
+
+        title.textContent = "👤 " + a.username;
+
+        card.appendChild(title);
+
+
+        const badge = document.createElement("span");
+
+        badge.className =
+            "badge " + (a.is_blocked ? "blocked" : "active");
+
+        badge.textContent =
+            a.is_blocked ? "🔴 محظور" : "🟢 نشط";
+
+        card.appendChild(badge);
+
+
+        const details = document.createElement("div");
+
+        details.className = "account-details";
+
+        details.textContent =
+            "رقم الحساب: " + a.account_number +
+            "\nالرصيد التجريبي: " + a.balance;
+
+        card.appendChild(details);
+
+
+        const input = document.createElement("input");
+
+        input.type = "number";
+
+        input.min = "0";
+
+        input.step = "0.01";
+
+        input.value = a.balance;
+
+        card.appendChild(input);
+
+
+        const actions = document.createElement("div");
+
+        actions.className = "actions";
+
+
+        const update = document.createElement("button");
+
+        update.textContent = "💰 تعديل الرصيد";
+
+        update.onclick = async () => {
+
+            try {
+
+                await adminFetch(
+                    "/api/admin/accounts/" + a.id + "/balance",
+                    {
+                        method: "PATCH",
+
+                        body: JSON.stringify({
+                            balance: input.value
+                        })
+                    }
+                );
+
+                msg("تم تعديل الرصيد التجريبي.");
+
+                await loadAccounts();
+
+            } catch (e) {
+
+                msg("❌ " + e.message);
+
+            }
+
+        };
+
+        actions.appendChild(update);
+
+
+        const block = document.createElement("button");
+
+        block.className = a.is_blocked ? "green" : "orange";
+
+        block.textContent =
+            a.is_blocked ? "🔓 فك الحظر" : "🔒 حظر الحساب";
+
+        block.onclick = async () => {
+
+            try {
+
+                await adminFetch(
+                    "/api/admin/accounts/" + a.id + "/block",
+                    {
+                        method: "PATCH",
+
+                        body: JSON.stringify({
+                            blocked: !a.is_blocked
+                        })
+                    }
+                );
+
+                await loadAccounts();
+
+            } catch (e) {
+
+                msg("❌ " + e.message);
+
+            }
+
+        };
+
+        actions.appendChild(block);
+
+
+        const del = document.createElement("button");
+
+        del.className = "red";
+
+        del.textContent = "🗑️ حذف الحساب";
+
+        del.onclick = async () => {
+
+            if (!confirm("هل تريد حذف هذا الحساب التجريبي نهائياً؟")) {
+                return;
+            }
+
+            try {
+
+                await adminFetch(
+                    "/api/admin/accounts/" + a.id,
+                    {
+                        method: "DELETE"
+                    }
+                );
+
+                await loadAccounts();
+
+            } catch (e) {
+
+                msg("❌ " + e.message);
+
+            }
+
+        };
+
+        actions.appendChild(del);
+
+        card.appendChild(actions);
+
+        box.appendChild(card);
+
+    });
+
 }
 
+
 checkServer();
+
 </script>
+
 </body>
 </html>
