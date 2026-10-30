@@ -118,7 +118,6 @@ def add_account():
             "error": "Username is required"
         }), 400
 
-    # رقم الحساب يجب أن يتكون من 7 أرقام بالضبط
     if not re.fullmatch(r"[0-9]{7}", account_number):
         return jsonify({
             "error": "Account number must contain exactly 7 digits"
@@ -131,9 +130,7 @@ def add_account():
             raise InvalidOperation
 
     except (InvalidOperation, ValueError):
-        return jsonify({
-            "error": "Invalid balance"
-        }), 400
+        return jsonify({"error": "Invalid balance"}), 400
 
     try:
         init_db()
@@ -278,27 +275,42 @@ def delete_account(account_id):
         return jsonify({
             "error": "Database operation failed"
         }), 500
-@app.route("/api/demo/accounts/<account_number>", methods=["GET"])
+
+
+@app.route(
+    "/api/demo/accounts/<account_number>",
+    methods=["GET"]
+)
 def get_demo_account(account_number):
     if not re.fullmatch(r"[0-9]{7}", account_number):
-        return jsonify({"error": "Invalid demo account number"}), 400
+        return jsonify({
+            "type": "demo",
+            "found": False
+        }), 400
 
     try:
         init_db()
+
         with get_db() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT username, account_number, balance, is_blocked
+                    SELECT username, account_number,
+                           balance, is_blocked
                     FROM demo_accounts
                     WHERE account_number = %s
                     LIMIT 1
                 """, (account_number,))
+
                 row = cur.fetchone()
 
         if row is None:
-            return jsonify({"type": "demo", "found": False}), 404
+            return jsonify({
+                "type": "demo",
+                "found": False
+            }), 404
 
         row["balance"] = str(row["balance"])
+
         return jsonify({
             "type": "demo",
             "found": True,
@@ -307,4 +319,59 @@ def get_demo_account(account_number):
 
     except Exception:
         app.logger.exception("Demo account lookup failed")
-        return jsonify({"error": "Demo account lookup failed"}), 500
+        return jsonify({
+            "error": "Demo account lookup failed"
+        }), 500
+
+
+# BOK-MAR demo balance lookup
+@app.route(
+    "/api/fetch_balance.php",
+    methods=["POST"]
+)
+def fetch_demo_balance():
+
+    data = request.get_json(silent=True) or {}
+
+    account_number = str(
+        request.form.get("account_number")
+        or data.get("account_number", "")
+    ).strip()
+
+    if not re.fullmatch(r"[0-9]{7}", account_number):
+        return jsonify({
+            "success": False,
+            "balance": 0
+        })
+
+    try:
+        init_db()
+
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT balance, is_blocked
+                    FROM demo_accounts
+                    WHERE account_number = %s
+                    LIMIT 1
+                """, (account_number,))
+
+                row = cur.fetchone()
+
+        if row is None or row["is_blocked"]:
+            return jsonify({
+                "success": False,
+                "balance": 0
+            })
+
+        return jsonify({
+            "success": True,
+            "balance": float(row["balance"])
+        })
+
+    except Exception:
+        app.logger.exception("Demo balance lookup failed")
+        return jsonify({
+            "success": False,
+            "balance": 0
+        }), 500
