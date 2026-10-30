@@ -50,6 +50,16 @@ def init_db():
             """)
 
 
+def request_data():
+    """Read JSON or form-encoded request data."""
+    data = request.get_json(silent=True)
+
+    if isinstance(data, dict):
+        return data
+
+    return request.form.to_dict()
+
+
 def authorized():
     supplied = request.headers.get("Authorization", "")
     return bool(ADMIN_TOKEN) and supplied == f"Bearer {ADMIN_TOKEN}"
@@ -114,7 +124,7 @@ def list_accounts():
 @app.route("/api/admin/accounts", methods=["POST"])
 def add_account():
 
-    data = request.get_json(silent=True) or {}
+    data = request_data()
 
     username = str(data.get("username", "")).strip()
     password = str(data.get("password", ""))
@@ -199,7 +209,8 @@ def add_account():
 @app.route("/api/demo/login", methods=["POST"])
 def demo_login():
 
-    data = request.get_json(silent=True) or {}
+    # استقبال البيانات بصيغة JSON أو Form
+    data = request_data()
 
     account_number = str(
         data.get("account_number", "")
@@ -245,7 +256,7 @@ def demo_login():
             "success": True,
             "username": row["username"],
             "account_number": row["account_number"],
-            "balance": str(row["balance"])
+            "balance": float(row["balance"])
         })
 
     except Exception:
@@ -262,7 +273,7 @@ def demo_login():
 )
 def update_balance(account_id):
 
-    data = request.get_json(silent=True) or {}
+    data = request_data()
 
     try:
         balance = Decimal(str(data.get("balance", "")))
@@ -309,7 +320,7 @@ def update_balance(account_id):
 )
 def block_account(account_id):
 
-    data = request.get_json(silent=True) or {}
+    data = request_data()
     blocked = data.get("blocked")
 
     if not isinstance(blocked, bool):
@@ -384,11 +395,10 @@ def delete_account(account_id):
 @app.route("/api/fetch_balance.php", methods=["POST"])
 def fetch_demo_balance():
 
-    data = request.get_json(silent=True) or {}
+    data = request_data()
 
     account_number = str(
-        request.form.get("account_number")
-        or data.get("account_number", "")
+        data.get("account_number", "")
     ).strip()
 
     if not re.fullmatch(r"[0-9]{7}", account_number):
@@ -428,3 +438,8 @@ def fetch_demo_balance():
             "success": False,
             "balance": 0
         }), 500
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port)
