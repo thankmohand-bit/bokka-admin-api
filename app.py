@@ -17,6 +17,7 @@ ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
 def get_db():
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL is not configured")
+
     return psycopg2.connect(
         DATABASE_URL,
         cursor_factory=RealDictCursor
@@ -26,6 +27,8 @@ def get_db():
 def init_db():
     with get_db() as conn:
         with conn.cursor() as cur:
+
+            # جدول الحسابات التجريبية القديم
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS demo_accounts (
                     id SERIAL PRIMARY KEY,
@@ -49,9 +52,22 @@ def init_db():
                 ADD COLUMN IF NOT EXISTS password_hash TEXT
             """)
 
+            # جدول مستقل لحفظ السجلات التجريبية المصرح بها
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS saved_accounts (
+                    id SERIAL PRIMARY KEY,
+                    full_account_number TEXT NOT NULL,
+                    short_account_number TEXT NOT NULL,
+                    owner_name TEXT NOT NULL,
+                    account_type TEXT NOT NULL,
+                    branch TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
 
 def request_data():
-    """Read JSON or form-encoded request data."""
+    """قراءة البيانات بصيغة JSON أو Form."""
     data = request.get_json(silent=True)
 
     if isinstance(data, dict):
@@ -69,11 +85,14 @@ def authorized():
 def protect_admin_operations():
     if request.path.startswith("/api/admin/") and not authorized():
         return jsonify({"error": "Unauthorized"}), 401
-
-
 @app.route("/")
 def home():
     return send_from_directory(".", "admin.html")
+
+
+@app.route("/admin/saved-accounts")
+def saved_accounts_page():
+    return send_from_directory(".", "saved-accounts.html")
 
 
 @app.route("/health")
@@ -204,12 +223,9 @@ def add_account():
         return jsonify({
             "error": "Database operation failed"
         }), 500
-
-
 @app.route("/api/demo/login", methods=["POST"])
 def demo_login():
 
-    # استقبال البيانات بصيغة JSON أو Form
     data = request_data()
 
     account_number = str(
@@ -312,8 +328,6 @@ def update_balance(account_id):
         return jsonify({
             "error": "Database operation failed"
         }), 500
-
-
 @app.route(
     "/api/admin/accounts/<int:account_id>/block",
     methods=["PATCH"]
@@ -321,11 +335,11 @@ def update_balance(account_id):
 def block_account(account_id):
 
     data = request_data()
-    blocked = data.get("blocked")
+    is_blocked = data.get("is_blocked")
 
-    if not isinstance(blocked, bool):
+    if not isinstance(is_blocked, bool):
         return jsonify({
-            "error": "blocked must be true or false"
+            "error": "قيمة الحظر غير صحيحة"
         }), 400
 
     try:
@@ -337,8 +351,9 @@ def block_account(account_id):
                     UPDATE demo_accounts
                     SET is_blocked = %s
                     WHERE id = %s
-                    RETURNING id, username, is_blocked
-                """, (blocked, account_id))
+                    RETURNING id, username, account_number,
+                              is_blocked
+                """, (is_blocked, account_id))
 
                 row = cur.fetchone()
 
@@ -350,7 +365,7 @@ def block_account(account_id):
         return jsonify(row)
 
     except Exception:
-        app.logger.exception("Could not change block status")
+        app.logger.exception("Could not update account block")
         return jsonify({
             "error": "Database operation failed"
         }), 500
@@ -381,8 +396,8 @@ def delete_account(account_id):
             }), 404
 
         return jsonify({
-            "status": "success",
-            "deleted_id": row["id"]
+            "success": True,
+            "message": "Account deleted"
         })
 
     except Exception:
@@ -393,7 +408,7 @@ def delete_account(account_id):
 
 
 @app.route("/api/fetch_balance.php", methods=["POST"])
-def fetch_demo_balance():
+def fetch_balance():
 
     data = request_data()
 
@@ -404,8 +419,8 @@ def fetch_demo_balance():
     if not re.fullmatch(r"[0-9]{7}", account_number):
         return jsonify({
             "success": False,
-            "balance": 0
-        })
+            "message": "رقم الحساب غير صحيح"
+        }), 400
 
     try:
         init_db()
@@ -413,7 +428,8 @@ def fetch_demo_balance():
         with get_db() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT balance, is_blocked
+                    SELECT username, account_number,
+                           balance, is_blocked
                     FROM demo_accounts
                     WHERE account_number = %s
                     LIMIT 1
@@ -424,22 +440,115 @@ def fetch_demo_balance():
         if row is None or row["is_blocked"]:
             return jsonify({
                 "success": False,
-                "balance": 0
-            })
+                "message": "الحساب غير متاح"
+            }), 404
 
         return jsonify({
             "success": True,
+            "username": row["username"],
+            "account_number": row["account_number"],
             "balance": float(row["balance"])
         })
 
     except Exception:
-        app.logger.exception("Demo balance lookup failed")
+        app.logger.exception("Could not fetch balance")
         return jsonify({
             "success": False,
-            "balance": 0
+            "message": "Service unavailable"
         }), 500
 
 
+@app.route("/api/admin/saved-accounts", methods=["POST"])
+def add_saved_account():
+
+    data = request_data()
+
+    full_number = str(
+        data.get("full_account_number", "")
+    ).strip()
+
+    short_number = str(
+        data.get("short_account_number", "")
+    ).strip()
+
+    owner_name = str(
+        data.get("owner_name", "")
+    ).strip()
+
+    account_type = str(
+        data.get("account_type", "")
+    ).strip()
+
+    branch = str(
+        data.get("branch", "")
+    ).strip()
+
+    if not re.fullmatch(r"[0-9]{16}", full_number):
+        return jsonify({
+            "error": "رقم الحساب الكامل يجب أن يتكون من 16 رقماً"
+        }), 400
+
+    if not re.fullmatch(r"[0-9]{7}", short_number):
+        return jsonify({
+            "error": "الرقم المختصر يجب أن يتكون من 7 أرقام"
+        }), 400
+
+    if not all([
+        owner_name,
+        account_type,
+        branch
+    ]):
+        return jsonify({
+            "error": "يرجى إكمال جميع الحقول"
+        }), 400
+
+    try:
+        init_db()
+
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO saved_accounts (
+                        full_account_number,
+                        short_account_number,
+                        owner_name,
+                        account_type,
+                        branch
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id, short_account_number,
+                              owner_name, account_type,
+                              branch, created_at
+                """, (
+                    full_number,
+                    short_number,
+                    owner_name,
+                    account_type,
+                    branch
+                ))
+
+                row = cur.fetchone()
+
+        row["created_at"] = row["created_at"].isoformat()
+
+        return jsonify({
+            "success": True,
+            "message": "تم حفظ البيانات بنجاح",
+            "account": row
+        }), 201
+
+    except Exception:
+        app.logger.exception("Could not save account")
+        return jsonify({
+            "error": "تعذر حفظ البيانات"
+        }), 500
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port)
+    init_db()
+
+    port = int(os.environ.get("PORT", 5000))
+
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=False
+    )
