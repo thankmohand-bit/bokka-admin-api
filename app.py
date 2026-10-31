@@ -17,7 +17,6 @@ ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
 def get_db():
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL is not configured")
-
     return psycopg2.connect(
         DATABASE_URL,
         cursor_factory=RealDictCursor
@@ -27,7 +26,6 @@ def get_db():
 def init_db():
     with get_db() as conn:
         with conn.cursor() as cur:
-
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS demo_accounts (
                     id SERIAL PRIMARY KEY,
@@ -51,7 +49,6 @@ def init_db():
                 ADD COLUMN IF NOT EXISTS password_hash TEXT
             """)
 
-            # جدول بيانات نسخة الدوشكا
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS saved_accounts (
                     id SERIAL PRIMARY KEY,
@@ -67,16 +64,13 @@ def init_db():
 
 def request_data():
     data = request.get_json(silent=True)
-
     if isinstance(data, dict):
         return data
-
     return request.form.to_dict()
 
 
 def authorized():
     supplied = request.headers.get("Authorization", "")
-
     return bool(ADMIN_TOKEN) and supplied == f"Bearer {ADMIN_TOKEN}"
 
 
@@ -86,13 +80,11 @@ def protect_admin_operations():
         return jsonify({"error": "Unauthorized"}), 401
 
 
-# الصفحة الرئيسية القديمة
 @app.route("/")
 def home():
     return send_from_directory(".", "admin.html")
 
 
-# صفحة لوحة إدخال الدوشكا
 @app.route("/dushka-entry")
 def dushka_entry_page():
     return send_from_directory(".", "dushka-entry.html")
@@ -111,10 +103,8 @@ def status():
     })
 
 
-# عرض الحسابات القديمة
 @app.route("/api/accounts", methods=["GET"])
 def list_accounts():
-
     if not authorized():
         return jsonify({"error": "Unauthorized"}), 401
 
@@ -129,7 +119,6 @@ def list_accounts():
                     FROM demo_accounts
                     ORDER BY id DESC
                 """)
-
                 rows = cur.fetchall()
 
         for row in rows:
@@ -143,10 +132,8 @@ def list_accounts():
         return jsonify({"error": "Database operation failed"}), 500
 
 
-# إضافة حساب تجريبي
 @app.route("/api/admin/accounts", methods=["POST"])
 def add_account():
-
     data = request_data()
 
     username = str(data.get("username", "")).strip()
@@ -162,10 +149,8 @@ def add_account():
 
     try:
         balance = Decimal(str(data.get("balance", "0")))
-
         if not balance.is_finite() or balance < 0:
             raise InvalidOperation
-
     except (InvalidOperation, ValueError):
         return jsonify({"error": "Invalid balance"}), 400
 
@@ -174,15 +159,10 @@ def add_account():
 
         with get_db() as conn:
             with conn.cursor() as cur:
-
                 account_number = None
 
                 for _ in range(50):
-
-                    candidate = str(
-                        secrets.randbelow(9000000) + 1000000
-                    )
-
+                    candidate = str(secrets.randbelow(9000000) + 1000000)
                     cur.execute("""
                         SELECT 1 FROM demo_accounts
                         WHERE account_number = %s
@@ -209,11 +189,9 @@ def add_account():
                     balance,
                     generate_password_hash(password)
                 ))
-
                 row = cur.fetchone()
 
         row["balance"] = str(row["balance"])
-
         return jsonify(row), 201
 
     except psycopg2.errors.UniqueViolation:
@@ -224,16 +202,11 @@ def add_account():
         return jsonify({"error": "Database operation failed"}), 500
 
 
-# تسجيل الدخول التجريبي
 @app.route("/api/demo/login", methods=["POST"])
 def demo_login():
-
     data = request_data()
 
-    account_number = str(
-        data.get("account_number", "")
-    ).strip()
-
+    account_number = str(data.get("account_number", "")).strip()
     password = str(data.get("password", ""))
 
     if not re.fullmatch(r"[0-9]{7}", account_number) or not password:
@@ -247,7 +220,6 @@ def demo_login():
 
         with get_db() as conn:
             with conn.cursor() as cur:
-
                 cur.execute("""
                     SELECT username, account_number,
                            balance, is_blocked, password_hash
@@ -255,7 +227,6 @@ def demo_login():
                     WHERE account_number = %s
                     LIMIT 1
                 """, (account_number,))
-
                 row = cur.fetchone()
 
         if (
@@ -278,28 +249,23 @@ def demo_login():
 
     except Exception:
         app.logger.exception("Demo login failed")
-
         return jsonify({
             "success": False,
             "message": "Login service unavailable"
         }), 500
 
 
-# تعديل الرصيد
 @app.route(
     "/api/admin/accounts/<int:account_id>/balance",
     methods=["PATCH"]
 )
 def update_balance(account_id):
-
     data = request_data()
 
     try:
         balance = Decimal(str(data.get("balance", "")))
-
         if not balance.is_finite() or balance < 0:
             raise InvalidOperation
-
     except (InvalidOperation, ValueError):
         return jsonify({"error": "Invalid balance"}), 400
 
@@ -308,21 +274,18 @@ def update_balance(account_id):
 
         with get_db() as conn:
             with conn.cursor() as cur:
-
                 cur.execute("""
                     UPDATE demo_accounts
                     SET balance = %s
                     WHERE id = %s
                     RETURNING id, username, account_number, balance
                 """, (balance, account_id))
-
                 row = cur.fetchone()
 
         if row is None:
             return jsonify({"error": "Account not found"}), 404
 
         row["balance"] = str(row["balance"])
-
         return jsonify(row)
 
     except Exception:
@@ -330,13 +293,11 @@ def update_balance(account_id):
         return jsonify({"error": "Database operation failed"}), 500
 
 
-# حظر أو إلغاء حظر الحساب
 @app.route(
     "/api/admin/accounts/<int:account_id>/block",
     methods=["PATCH"]
 )
 def block_account(account_id):
-
     data = request_data()
     blocked = data.get("blocked")
 
@@ -348,14 +309,12 @@ def block_account(account_id):
 
         with get_db() as conn:
             with conn.cursor() as cur:
-
                 cur.execute("""
                     UPDATE demo_accounts
                     SET is_blocked = %s
                     WHERE id = %s
                     RETURNING id, username, is_blocked
                 """, (blocked, account_id))
-
                 row = cur.fetchone()
 
         if row is None:
@@ -368,25 +327,21 @@ def block_account(account_id):
         return jsonify({"error": "Database operation failed"}), 500
 
 
-# حذف الحساب
 @app.route(
     "/api/admin/accounts/<int:account_id>",
     methods=["DELETE"]
 )
 def delete_account(account_id):
-
     try:
         init_db()
 
         with get_db() as conn:
             with conn.cursor() as cur:
-
                 cur.execute("""
                     DELETE FROM demo_accounts
                     WHERE id = %s
                     RETURNING id
                 """, (account_id,))
-
                 row = cur.fetchone()
 
         if row is None:
@@ -402,10 +357,8 @@ def delete_account(account_id):
         return jsonify({"error": "Database operation failed"}), 500
 
 
-# البحث القديم في الحسابات التجريبية
 @app.route("/api/fetch_balance.php", methods=["POST"])
 def fetch_demo_balance():
-
     data = request_data()
 
     account_number = str(
@@ -413,31 +366,23 @@ def fetch_demo_balance():
     ).strip()
 
     if not re.fullmatch(r"[0-9]{7}", account_number):
-        return jsonify({
-            "success": False,
-            "balance": 0
-        })
+        return jsonify({"success": False, "balance": 0})
 
     try:
         init_db()
 
         with get_db() as conn:
             with conn.cursor() as cur:
-
                 cur.execute("""
                     SELECT balance, is_blocked
                     FROM demo_accounts
                     WHERE account_number = %s
                     LIMIT 1
                 """, (account_number,))
-
                 row = cur.fetchone()
 
         if row is None or row["is_blocked"]:
-            return jsonify({
-                "success": False,
-                "balance": 0
-            })
+            return jsonify({"success": False, "balance": 0})
 
         return jsonify({
             "success": True,
@@ -446,23 +391,13 @@ def fetch_demo_balance():
 
     except Exception:
         app.logger.exception("Demo balance lookup failed")
+        return jsonify({"success": False, "balance": 0}), 500
 
-        return jsonify({
-            "success": False,
-            "balance": 0
-        }), 500
-
-
-# ==================================================
-# لوحة إدخال بيانات نسخة الدوشكا - مفتوحة للجميع
-# ==================================================
 
 @app.route("/api/saved-accounts", methods=["POST"])
 def public_add_saved_account():
-
     data = request_data()
 
-    # دعم الأرقام العربية والفارسية والإنجليزية
     translation = str.maketrans(
         "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹",
         "01234567890123456789"
@@ -476,7 +411,6 @@ def public_add_saved_account():
     account_type = str(data.get("account_type", "")).strip()
     branch = str(data.get("branch", "")).strip()
 
-    # التحقق من الرقم الكامل
     if not re.fullmatch(r"[0-9]{16}", full_number):
         return jsonify({
             "error": "رقم الحساب يجب أن يتكون من 16 رقماً"
@@ -487,7 +421,6 @@ def public_add_saved_account():
             "error": "يرجى إكمال جميع الحقول"
         }), 400
 
-    # استخراج السبعة أرقام من الرقم الكامل
     short_number = full_number[5:12]
 
     try:
@@ -495,7 +428,6 @@ def public_add_saved_account():
 
         with get_db() as conn:
             with conn.cursor() as cur:
-
                 cur.execute("""
                     INSERT INTO saved_accounts (
                         full_account_number,
@@ -524,25 +456,12 @@ def public_add_saved_account():
         }), 201
 
     except Exception:
-        app.logger.exception("Could not save public account")
-
+        app.logger.exception("Could not save public Dushka account")
         return jsonify({
-            "error": "تعذر حفظ البيانات"
+            "error": "تعذر حفظ البيانات، حاول مرة أخرى"
         }), 500
 
 
-# صفحة لوحة إدخال الدوشكا
-@app.route("/dushka-entry")
-def dushka_entry_page():
-    return send_from_directory(".", "dushka-entry.html")
-
-
-# تشغيل الخادم
 if __name__ == "__main__":
-
     port = int(os.environ.get("PORT", "5000"))
-
-    app.run(
-        host="0.0.0.0",
-        port=port
-    )
+    app.run(host="0.0.0.0", port=port)
