@@ -28,7 +28,6 @@ def init_db():
     with get_db() as conn:
         with conn.cursor() as cur:
 
-            # جدول الحسابات التجريبية القديم
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS demo_accounts (
                     id SERIAL PRIMARY KEY,
@@ -52,7 +51,7 @@ def init_db():
                 ADD COLUMN IF NOT EXISTS password_hash TEXT
             """)
 
-            # جدول مستقل لحفظ السجلات التجريبية المصرح بها
+            # جدول بيانات نسخة الدوشكا
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS saved_accounts (
                     id SERIAL PRIMARY KEY,
@@ -67,7 +66,6 @@ def init_db():
 
 
 def request_data():
-    """قراءة البيانات بصيغة JSON أو Form."""
     data = request.get_json(silent=True)
 
     if isinstance(data, dict):
@@ -78,6 +76,7 @@ def request_data():
 
 def authorized():
     supplied = request.headers.get("Authorization", "")
+
     return bool(ADMIN_TOKEN) and supplied == f"Bearer {ADMIN_TOKEN}"
 
 
@@ -85,14 +84,18 @@ def authorized():
 def protect_admin_operations():
     if request.path.startswith("/api/admin/") and not authorized():
         return jsonify({"error": "Unauthorized"}), 401
+
+
+# الصفحة الرئيسية القديمة
 @app.route("/")
 def home():
     return send_from_directory(".", "admin.html")
 
 
-@app.route("/admin/saved-accounts")
-def saved_accounts_page():
-    return send_from_directory(".", "saved-accounts.html")
+# صفحة لوحة إدخال الدوشكا
+@app.route("/dushka-entry")
+def dushka_entry_page():
+    return send_from_directory(".", "dushka-entry.html")
 
 
 @app.route("/health")
@@ -108,6 +111,7 @@ def status():
     })
 
 
+# عرض الحسابات القديمة
 @app.route("/api/accounts", methods=["GET"])
 def list_accounts():
 
@@ -125,6 +129,7 @@ def list_accounts():
                     FROM demo_accounts
                     ORDER BY id DESC
                 """)
+
                 rows = cur.fetchall()
 
         for row in rows:
@@ -135,11 +140,10 @@ def list_accounts():
 
     except Exception:
         app.logger.exception("Could not list accounts")
-        return jsonify({
-            "error": "Database operation failed"
-        }), 500
+        return jsonify({"error": "Database operation failed"}), 500
 
 
+# إضافة حساب تجريبي
 @app.route("/api/admin/accounts", methods=["POST"])
 def add_account():
 
@@ -149,9 +153,7 @@ def add_account():
     password = str(data.get("password", ""))
 
     if not username:
-        return jsonify({
-            "error": "أدخل اسم المستخدم"
-        }), 400
+        return jsonify({"error": "أدخل اسم المستخدم"}), 400
 
     if len(password) < 6:
         return jsonify({
@@ -176,6 +178,7 @@ def add_account():
                 account_number = None
 
                 for _ in range(50):
+
                     candidate = str(
                         secrets.randbelow(9000000) + 1000000
                     )
@@ -214,15 +217,14 @@ def add_account():
         return jsonify(row), 201
 
     except psycopg2.errors.UniqueViolation:
-        return jsonify({
-            "error": "اسم المستخدم موجود مسبقاً"
-        }), 409
+        return jsonify({"error": "اسم المستخدم موجود مسبقاً"}), 409
 
     except Exception:
         app.logger.exception("Could not add account")
-        return jsonify({
-            "error": "Database operation failed"
-        }), 500
+        return jsonify({"error": "Database operation failed"}), 500
+
+
+# تسجيل الدخول التجريبي
 @app.route("/api/demo/login", methods=["POST"])
 def demo_login():
 
@@ -245,6 +247,7 @@ def demo_login():
 
         with get_db() as conn:
             with conn.cursor() as cur:
+
                 cur.execute("""
                     SELECT username, account_number,
                            balance, is_blocked, password_hash
@@ -259,9 +262,7 @@ def demo_login():
             row is None
             or row["is_blocked"]
             or not row["password_hash"]
-            or not check_password_hash(
-                row["password_hash"], password
-            )
+            or not check_password_hash(row["password_hash"], password)
         ):
             return jsonify({
                 "success": False,
@@ -277,12 +278,14 @@ def demo_login():
 
     except Exception:
         app.logger.exception("Demo login failed")
+
         return jsonify({
             "success": False,
             "message": "Login service unavailable"
         }), 500
 
 
+# تعديل الرصيد
 @app.route(
     "/api/admin/accounts/<int:account_id>/balance",
     methods=["PATCH"]
@@ -305,6 +308,7 @@ def update_balance(account_id):
 
         with get_db() as conn:
             with conn.cursor() as cur:
+
                 cur.execute("""
                     UPDATE demo_accounts
                     SET balance = %s
@@ -315,9 +319,7 @@ def update_balance(account_id):
                 row = cur.fetchone()
 
         if row is None:
-            return jsonify({
-                "error": "Account not found"
-            }), 404
+            return jsonify({"error": "Account not found"}), 404
 
         row["balance"] = str(row["balance"])
 
@@ -325,9 +327,10 @@ def update_balance(account_id):
 
     except Exception:
         app.logger.exception("Could not update balance")
-        return jsonify({
-            "error": "Database operation failed"
-        }), 500
+        return jsonify({"error": "Database operation failed"}), 500
+
+
+# حظر أو إلغاء حظر الحساب
 @app.route(
     "/api/admin/accounts/<int:account_id>/block",
     methods=["PATCH"]
@@ -335,42 +338,37 @@ def update_balance(account_id):
 def block_account(account_id):
 
     data = request_data()
-    is_blocked = data.get("is_blocked")
+    blocked = data.get("blocked")
 
-    if not isinstance(is_blocked, bool):
-        return jsonify({
-            "error": "قيمة الحظر غير صحيحة"
-        }), 400
+    if not isinstance(blocked, bool):
+        return jsonify({"error": "blocked must be true or false"}), 400
 
     try:
         init_db()
 
         with get_db() as conn:
             with conn.cursor() as cur:
+
                 cur.execute("""
                     UPDATE demo_accounts
                     SET is_blocked = %s
                     WHERE id = %s
-                    RETURNING id, username, account_number,
-                              is_blocked
-                """, (is_blocked, account_id))
+                    RETURNING id, username, is_blocked
+                """, (blocked, account_id))
 
                 row = cur.fetchone()
 
         if row is None:
-            return jsonify({
-                "error": "Account not found"
-            }), 404
+            return jsonify({"error": "Account not found"}), 404
 
         return jsonify(row)
 
     except Exception:
-        app.logger.exception("Could not update account block")
-        return jsonify({
-            "error": "Database operation failed"
-        }), 500
+        app.logger.exception("Could not change block status")
+        return jsonify({"error": "Database operation failed"}), 500
 
 
+# حذف الحساب
 @app.route(
     "/api/admin/accounts/<int:account_id>",
     methods=["DELETE"]
@@ -382,6 +380,7 @@ def delete_account(account_id):
 
         with get_db() as conn:
             with conn.cursor() as cur:
+
                 cur.execute("""
                     DELETE FROM demo_accounts
                     WHERE id = %s
@@ -391,24 +390,21 @@ def delete_account(account_id):
                 row = cur.fetchone()
 
         if row is None:
-            return jsonify({
-                "error": "Account not found"
-            }), 404
+            return jsonify({"error": "Account not found"}), 404
 
         return jsonify({
-            "success": True,
-            "message": "Account deleted"
+            "status": "success",
+            "deleted_id": row["id"]
         })
 
     except Exception:
         app.logger.exception("Could not delete account")
-        return jsonify({
-            "error": "Database operation failed"
-        }), 500
+        return jsonify({"error": "Database operation failed"}), 500
 
 
+# البحث القديم في الحسابات التجريبية
 @app.route("/api/fetch_balance.php", methods=["POST"])
-def fetch_balance():
+def fetch_demo_balance():
 
     data = request_data()
 
@@ -419,17 +415,17 @@ def fetch_balance():
     if not re.fullmatch(r"[0-9]{7}", account_number):
         return jsonify({
             "success": False,
-            "message": "رقم الحساب غير صحيح"
-        }), 400
+            "balance": 0
+        })
 
     try:
         init_db()
 
         with get_db() as conn:
             with conn.cursor() as cur:
+
                 cur.execute("""
-                    SELECT username, account_number,
-                           balance, is_blocked
+                    SELECT balance, is_blocked
                     FROM demo_accounts
                     WHERE account_number = %s
                     LIMIT 1
@@ -440,73 +436,66 @@ def fetch_balance():
         if row is None or row["is_blocked"]:
             return jsonify({
                 "success": False,
-                "message": "الحساب غير متاح"
-            }), 404
+                "balance": 0
+            })
 
         return jsonify({
             "success": True,
-            "username": row["username"],
-            "account_number": row["account_number"],
             "balance": float(row["balance"])
         })
 
     except Exception:
-        app.logger.exception("Could not fetch balance")
+        app.logger.exception("Demo balance lookup failed")
+
         return jsonify({
             "success": False,
-            "message": "Service unavailable"
+            "balance": 0
         }), 500
 
 
-@app.route("/api/admin/saved-accounts", methods=["POST"])
-def add_saved_account():
+# ==================================================
+# لوحة إدخال بيانات نسخة الدوشكا - مفتوحة للجميع
+# ==================================================
+
+@app.route("/api/saved-accounts", methods=["POST"])
+def public_add_saved_account():
 
     data = request_data()
 
+    # دعم الأرقام العربية والفارسية والإنجليزية
+    translation = str.maketrans(
+        "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹",
+        "01234567890123456789"
+    )
+
     full_number = str(
         data.get("full_account_number", "")
-    ).strip()
+    ).strip().translate(translation)
 
-    short_number = str(
-        data.get("short_account_number", "")
-    ).strip()
+    owner_name = str(data.get("owner_name", "")).strip()
+    account_type = str(data.get("account_type", "")).strip()
+    branch = str(data.get("branch", "")).strip()
 
-    owner_name = str(
-        data.get("owner_name", "")
-    ).strip()
-
-    account_type = str(
-        data.get("account_type", "")
-    ).strip()
-
-    branch = str(
-        data.get("branch", "")
-    ).strip()
-
+    # التحقق من الرقم الكامل
     if not re.fullmatch(r"[0-9]{16}", full_number):
         return jsonify({
-            "error": "رقم الحساب الكامل يجب أن يتكون من 16 رقماً"
+            "error": "رقم الحساب يجب أن يتكون من 16 رقماً"
         }), 400
 
-    if not re.fullmatch(r"[0-9]{7}", short_number):
-        return jsonify({
-            "error": "الرقم المختصر يجب أن يتكون من 7 أرقام"
-        }), 400
-
-    if not all([
-        owner_name,
-        account_type,
-        branch
-    ]):
+    if not all([owner_name, account_type, branch]):
         return jsonify({
             "error": "يرجى إكمال جميع الحقول"
         }), 400
+
+    # استخراج السبعة أرقام من الرقم الكامل
+    short_number = full_number[5:12]
 
     try:
         init_db()
 
         with get_db() as conn:
             with conn.cursor() as cur:
+
                 cur.execute("""
                     INSERT INTO saved_accounts (
                         full_account_number,
@@ -516,9 +505,7 @@ def add_saved_account():
                         branch
                     )
                     VALUES (%s, %s, %s, %s, %s)
-                    RETURNING id, short_account_number,
-                              owner_name, account_type,
-                              branch, created_at
+                    RETURNING id
                 """, (
                     full_number,
                     short_number,
@@ -529,26 +516,33 @@ def add_saved_account():
 
                 row = cur.fetchone()
 
-        row["created_at"] = row["created_at"].isoformat()
-
         return jsonify({
             "success": True,
             "message": "تم حفظ البيانات بنجاح",
-            "account": row
+            "id": row["id"],
+            "short_account_number": short_number
         }), 201
 
     except Exception:
-        app.logger.exception("Could not save account")
+        app.logger.exception("Could not save public account")
+
         return jsonify({
             "error": "تعذر حفظ البيانات"
         }), 500
-if __name__ == "__main__":
-    init_db()
 
-    port = int(os.environ.get("PORT", 5000))
+
+# صفحة لوحة إدخال الدوشكا
+@app.route("/dushka-entry")
+def dushka_entry_page():
+    return send_from_directory(".", "dushka-entry.html")
+
+
+# تشغيل الخادم
+if __name__ == "__main__":
+
+    port = int(os.environ.get("PORT", "5000"))
 
     app.run(
         host="0.0.0.0",
-        port=port,
-        debug=False
+        port=port
     )
