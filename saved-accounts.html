@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حفظ الحسابات</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f3f6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 450px;
+            margin: 30px auto;
+            background: white;
+            padding: 22px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px #00000015;
+        }
+
+        h2 {
+            text-align: center;
+            color: #173b63;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            margin-top: 7px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 22px;
+            padding: 13px;
+            background: #1769aa;
+            color: white;
+            border: none;
+            border-radius: 7px;
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+        }
+
+        #message {
+            text-align: center;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>حفظ الحسابات</h2>
+
+    <form id="saveForm">
+
+        <label>رقم الحساب الكامل</label>
+        <input type="text" id="fullNumber"
+               maxlength="16" inputmode="numeric" required>
+
+        <label>الرقم المختصر</label>
+        <input type="text" id="shortNumber"
+               maxlength="7" inputmode="numeric" required>
+
+        <label>اسم صاحب الحساب</label>
+        <input type="text" id="ownerName" required>
+
+        <label>نوع الحساب</label>
+        <input type="text" id="accountType" required>
+
+        <label>الفرع</label>
+        <input type="text" id="branch" required>
+
+        <button type="submit" id="saveButton">
+            حفظ البيانات
+        </button>
+
+    </form>
+
+    <div id="message"></div>
+
+</div>
+
+<script>
+const form = document.getElementById("saveForm");
+const message = document.getElementById("message");
+const button = document.getElementById("saveButton");
+
+form.addEventListener("submit", async function(event) {
+
+    event.preventDefault();
+
+    const fullNumber =
+        document.getElementById("fullNumber").value.trim();
+
+    const shortNumber =
+        document.getElementById("shortNumber").value.trim();
+
+    const ownerName =
+        document.getElementById("ownerName").value.trim();
+
+    const accountType =
+        document.getElementById("accountType").value.trim();
+
+    const branch =
+        document.getElementById("branch").value.trim();
+
+    if (!/^[0-9]{16}$/.test(fullNumber)) {
+        message.textContent =
+            "رقم الحساب يجب أن يتكون من 16 رقماً";
+        return;
+    }
+
+    if (!/^[0-9]{7}$/.test(shortNumber)) {
+        message.textContent =
+            "الرقم المختصر يجب أن يتكون من 7 أرقام";
+        return;
+    }
+
+    const token = prompt("أدخل رمز الإدارة:");
+
+    if (!token) {
+        message.textContent = "تم إلغاء العملية";
+        return;
+    }
+
+    button.disabled = true;
+    message.textContent = "جاري حفظ البيانات...";
+
+    try {
+
+        const response = await fetch(
+            "/api/admin/saved-accounts",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({
+                    full_account_number: fullNumber,
+                    short_account_number: shortNumber,
+                    owner_name: ownerName,
+                    account_type: accountType,
+                    branch: branch
+                })
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.error || "تعذر حفظ البيانات"
+            );
+        }
+
+        message.textContent = "تم حفظ البيانات بنجاح";
+        form.reset();
+
+    } catch (error) {
+
+        message.textContent = error.message;
+
+    } finally {
+
+        button.disabled = false;
+
+    }
+
+});
+</script>
+
+</body>
+</html>
