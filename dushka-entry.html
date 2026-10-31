@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لوحة إدخال بيانات نسخة الدوشكا</title>
+
+<style>
+body {
+    font-family: Arial, Tahoma;
+    background: #f2f4f7;
+    padding: 20px;
+}
+
+.container {
+    max-width: 450px;
+    margin: auto;
+    background: white;
+    padding: 22px;
+    border-radius: 12px;
+}
+
+h2, .welcome {
+    text-align: center;
+}
+
+.welcome {
+    color: green;
+    font-weight: bold;
+}
+
+label {
+    display: block;
+    margin-top: 15px;
+    font-weight: bold;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 7px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 7px;
+    font-size: 16px;
+}
+
+input[readonly] {
+    background: #eee;
+}
+
+button {
+    width: 100%;
+    padding: 14px;
+    margin-top: 20px;
+    background: #087b49;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    font-size: 17px;
+}
+
+#message {
+    text-align: center;
+    margin-top: 15px;
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>لوحة إدخال بيانات نسخة الدوشكا</h2>
+
+<p class="welcome">مرحباً بكم في لوحة دوشكا</p>
+
+<form id="entryForm">
+
+<label>رقم الحساب الكامل (16 رقم)</label>
+<input id="fullNumber" maxlength="16"
+       inputmode="numeric" required>
+
+<label>رقم الحساب المختصر (7 أرقام)</label>
+<input id="shortNumber" readonly>
+
+<label>الاسم الرباعي</label>
+<input id="ownerName" required>
+
+<label>نوع الحساب</label>
+<input id="accountType" required>
+
+<label>الفرع</label>
+<input id="branch" required>
+
+<button id="saveButton" type="submit">
+حفظ البيانات
+</button>
+
+<div id="message"></div>
+
+</form>
+</div>
+
+<script>
+
+const fullNumber = document.getElementById("fullNumber");
+const shortNumber = document.getElementById("shortNumber");
+
+function normalizeDigits(value) {
+    const ar = "٠١٢٣٤٥٦٧٨٩";
+    const fa = "۰۱۲۳۴۵۶۷۸۹";
+
+    return value.replace(/[٠-٩۰-۹]/g, ch => {
+        let i = ar.indexOf(ch);
+        if (i === -1) i = fa.indexOf(ch);
+        return String(i);
+    }).replace(/[^0-9]/g, "").slice(0, 16);
+}
+
+fullNumber.addEventListener("input", function() {
+    this.value = normalizeDigits(this.value);
+
+    shortNumber.value =
+        this.value.length === 16
+        ? this.value.slice(5, 12)
+        : "";
+});
+
+document.getElementById("entryForm")
+.addEventListener("submit", async function(e) {
+
+    e.preventDefault();
+
+    const message = document.getElementById("message");
+    const button = document.getElementById("saveButton");
+
+    if (fullNumber.value.length !== 16) {
+        message.textContent = "رقم الحساب يجب أن يكون 16 رقماً";
+        return;
+    }
+
+    const data = {
+        full_account_number: fullNumber.value,
+        owner_name: document.getElementById("ownerName").value.trim(),
+        account_type: document.getElementById("accountType").value.trim(),
+        branch: document.getElementById("branch").value.trim()
+    };
+
+    button.disabled = true;
+    button.textContent = "جارٍ الحفظ...";
+
+    try {
+        const response = await fetch("/api/saved-accounts", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || "تعذر الحفظ");
+        }
+
+        message.style.color = "green";
+        message.textContent = "تم حفظ البيانات بنجاح";
+
+        this.reset();
+        shortNumber.value = "";
+
+    } catch (error) {
+        message.style.color = "red";
+        message.textContent = error.message;
+
+    } finally {
+        button.disabled = false;
+        button.textContent = "حفظ البيانات";
+    }
+});
+
+</script>
+
+</body>
+</html>
