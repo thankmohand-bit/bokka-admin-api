@@ -462,6 +462,68 @@ def public_add_saved_account():
         }), 500
 
 
+@app.route("/api/check_internal_account_2.php", methods=["POST"])
+def check_internal_account():
+    data = request_data()
+
+    translation = str.maketrans(
+        "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹",
+        "01234567890123456789"
+    )
+
+    short_number = str(
+        data.get("short_account_number", data.get("account_number", ""))
+    ).strip().translate(translation)
+
+    if not re.fullmatch(r"[0-9]{7}", short_number):
+        return jsonify({
+            "success": False,
+            "found": False,
+            "message": "رقم الحساب غير صحيح"
+        }), 400
+
+    try:
+        init_db()
+
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT short_account_number,
+                           owner_name,
+                           account_type,
+                           branch
+                    FROM saved_accounts
+                    WHERE short_account_number = %s
+                    ORDER BY id DESC
+                    LIMIT 1
+                """, (short_number,))
+                row = cur.fetchone()
+
+        if row is None:
+            return jsonify({
+                "success": True,
+                "found": False,
+                "message": "الحساب غير موجود"
+            })
+
+        return jsonify({
+            "success": True,
+            "found": True,
+            "account_number": row["short_account_number"],
+            "owner_name": row["owner_name"],
+            "account_type": row["account_type"],
+            "branch": row["branch"]
+        })
+
+    except Exception:
+        app.logger.exception("Dushka account lookup failed")
+        return jsonify({
+            "success": False,
+            "found": False,
+            "message": "حدث خطأ أثناء البحث"
+        }), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
     app.run(host="0.0.0.0", port=port)
