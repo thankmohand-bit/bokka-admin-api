@@ -1,4 +1,3 @@
-
 import os
 import re
 import secrets
@@ -264,6 +263,8 @@ def get_session_account(cur):
     if row is None or row["is_blocked"]:
         return None
     return row
+
+
 @app.route("/api/demo/logout", methods=["POST"])
 def demo_logout():
     data = request_data()
@@ -372,8 +373,6 @@ def demo_transfer():
     except Exception:
         app.logger.exception("Demo transfer failed")
         return jsonify({"success": False, "message": "تعذر تنفيذ التحويل التجريبي"}), 500
-
-
 @app.route("/api/admin/transfers", methods=["GET"])
 def admin_transfers():
     if not authorized():
@@ -492,35 +491,88 @@ def fetch_demo_balance():
 @app.route("/api/saved-accounts", methods=["POST"])
 def public_add_saved_account():
     data = request_data()
+
     translation = str.maketrans(
-        "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789"
+        "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹",
+        "01234567890123456789"
     )
-    full_number = str(data.get("full_account_number", "")).strip().translate(translation)
-    owner_name = str(data.get("owner_name", "")).strip()
+
+    full_number = str(
+        data.get("full_account_number", "")
+    ).strip().translate(translation)
+
+    short_number = str(
+        data.get("short_account_number", "")
+    ).strip().translate(translation)
+
+    # يقبل أسماء الحقول التي يرسلها التطبيق والحقول القديمة
+    owner_name = str(
+        data.get("owner_name", data.get("account_name", ""))
+    ).strip()
+
     account_type = str(data.get("account_type", "")).strip()
-    branch = str(data.get("branch", "")).strip()
+
+    branch = str(
+        data.get("branch", data.get("account_branch", ""))
+    ).strip()
+
     if not re.fullmatch(r"[0-9]{16}", full_number):
-        return jsonify({"error": "رقم الحساب يجب أن يتكون من 16 رقماً"}), 400
+        return jsonify({
+            "success": False,
+            "message": "رقم الحساب يجب أن يتكون من 16 رقماً"
+        }), 400
+
     if not all([owner_name, account_type, branch]):
-        return jsonify({"error": "يرجى إكمال جميع الحقول"}), 400
-    short_number = full_number[5:12]
+        return jsonify({
+            "success": False,
+            "message": "يرجى إكمال جميع الحقول"
+        }), 400
+
+    calculated_short = full_number[5:12]
+
+    if short_number and short_number != calculated_short:
+        return jsonify({
+            "success": False,
+            "message": "رقم الحساب المختصر غير مطابق"
+        }), 400
+
     try:
         init_db()
         with get_db() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     INSERT INTO saved_accounts
-                    (full_account_number, short_account_number, owner_name, account_type, branch)
-                    VALUES (%s, %s, %s, %s, %s) RETURNING id
-                """, (full_number, short_number, owner_name, account_type, branch))
+                    (
+                        full_account_number,
+                        short_account_number,
+                        owner_name,
+                        account_type,
+                        branch
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (
+                    full_number,
+                    calculated_short,
+                    owner_name,
+                    account_type,
+                    branch
+                ))
                 row = cur.fetchone()
+
         return jsonify({
-            "success": True, "message": "تم حفظ البيانات بنجاح",
-            "id": row["id"], "short_account_number": short_number
+            "success": True,
+            "message": "تم حفظ البيانات بنجاح",
+            "id": row["id"],
+            "short_account_number": calculated_short
         }), 201
+
     except Exception:
         app.logger.exception("Could not save public Dushka account")
-        return jsonify({"error": "تعذر حفظ البيانات، حاول مرة أخرى"}), 500
+        return jsonify({
+            "success": False,
+            "message": "تعذر حفظ البيانات، حاول مرة أخرى"
+        }), 500
 
 
 @app.route("/api/check_internal_account_2.php", methods=["POST"])
@@ -532,10 +584,14 @@ def check_internal_account():
     short_number = str(
         data.get("short_account_number", data.get("account_number", ""))
     ).strip().translate(translation)
+
     if not re.fullmatch(r"[0-9]{7}", short_number):
         return jsonify({
-            "success": False, "found": False, "message": "رقم الحساب غير صحيح"
+            "success": False,
+            "found": False,
+            "message": "رقم الحساب غير صحيح"
         }), 400
+
     try:
         init_db()
         with get_db() as conn:
@@ -547,23 +603,35 @@ def check_internal_account():
                     ORDER BY id DESC LIMIT 1
                 """, (short_number,))
                 row = cur.fetchone()
+
         if row is None:
-            return jsonify({"success": True, "found": False, "message": "الحساب غير موجود"})
+            return jsonify({
+                "success": True,
+                "found": False,
+                "message": "الحساب غير موجود"
+            })
+
         return jsonify({
-            "success": True, "found": True,
+            "success": True,
+            "found": True,
             "account_number": row["short_account_number"],
             "owner_name": row["owner_name"],
             "account_type": row["account_type"],
             "branch": row["branch"]
         })
+
     except Exception:
         app.logger.exception("Dushka account lookup failed")
         return jsonify({
-            "success": False, "found": False, "message": "حدث خطأ أثناء البحث"
+            "success": False,
+            "found": False,
+            "message": "حدث خطأ أثناء البحث"
         }), 500
 
 
 if __name__ == "__main__":
     init_db()
-    port = int(os.environ.get("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", "5000"))
+    )
