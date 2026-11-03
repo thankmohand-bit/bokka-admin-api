@@ -60,6 +60,10 @@ button {
     font-size: 17px;
 }
 
+button:disabled {
+    opacity: 0.6;
+}
+
 #message {
     text-align: center;
     margin-top: 15px;
@@ -137,6 +141,7 @@ document.getElementById("entryForm")
     const button = document.getElementById("saveButton");
 
     if (fullNumber.value.length !== 16) {
+        message.style.color = "red";
         message.textContent = "رقم الحساب يجب أن يكون 16 رقماً";
         return;
     }
@@ -163,7 +168,9 @@ document.getElementById("entryForm")
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.error || "تعذر الحفظ");
+            throw new Error(
+                result.message || result.error || "تعذر الحفظ"
+            );
         }
 
         message.style.color = "green";
