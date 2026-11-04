@@ -231,6 +231,10 @@ def add_account():
         return jsonify({"error": "Database operation failed"}), 500
 
 
+# ==================================================
+# DEMO LOGIN - DIAGNOSTIC VERSION
+# ==================================================
+
 @app.route("/api/demo/login", methods=["POST"])
 def demo_login():
     data = request_data()
@@ -239,6 +243,7 @@ def demo_login():
     password = str(data.get("password", ""))
 
     if not re.fullmatch(r"[0-9]{7}", account_number) or not password:
+        app.logger.warning("LOGIN_DIAG: invalid input format")
         return jsonify({
             "success": False,
             "message": "بيانات الدخول غير صحيحة"
@@ -258,18 +263,38 @@ def demo_login():
 
                 row = cur.fetchone()
 
-                if (
-                    row is None
-                    or row["is_blocked"]
-                    or not row["password_hash"]
-                    or not check_password_hash(row["password_hash"], password)
-                ):
+                if row is None:
+                    app.logger.warning("LOGIN_DIAG: account not found")
                     return jsonify({
                         "success": False,
-                        "message": "رقم الحساب أو كلمة المرور غير صحيحة"
+                        "message": "الحساب غير موجود"
+                    }), 401
+
+                if row["is_blocked"]:
+                    app.logger.warning("LOGIN_DIAG: account blocked")
+                    return jsonify({
+                        "success": False,
+                        "message": "الحساب محظور"
+                    }), 401
+
+                if not row["password_hash"]:
+                    app.logger.warning("LOGIN_DIAG: password hash missing")
+                    return jsonify({
+                        "success": False,
+                        "message": "كلمة مرور الحساب غير مهيأة"
+                    }), 401
+
+                if not check_password_hash(
+                    row["password_hash"], password
+                ):
+                    app.logger.warning("LOGIN_DIAG: password mismatch")
+                    return jsonify({
+                        "success": False,
+                        "message": "كلمة المرور غير مطابقة"
                     }), 401
 
                 raw_token = secrets.token_urlsafe(32)
+
                 token_hash = hashlib.sha256(
                     raw_token.encode()
                 ).hexdigest()
@@ -284,6 +309,8 @@ def demo_login():
                     (account_id, token_hash, expires_at)
                     VALUES (%s, %s, %s)
                 """, (row["id"], token_hash, expires_at))
+
+        app.logger.info("LOGIN_DIAG: login successful")
 
         return jsonify({
             "success": True,
@@ -803,7 +830,7 @@ def public_add_saved_account():
 
 
 # ==================================================
-# DUSHKA SEARCH - UPDATED RESPONSE FIELDS
+# DUSHKA SEARCH
 # ==================================================
 
 @app.route("/api/check_internal_account_2.php", methods=["POST"])
@@ -859,16 +886,12 @@ def check_internal_account():
         return jsonify({
             "success": True,
             "found": True,
-
             "full_account_number": row["full_account_number"],
             "account_number": row["short_account_number"],
-
             "account_name": row["owner_name"],
             "owner_name": row["owner_name"],
-
             "account_branch": row["branch"],
             "branch": row["branch"],
-
             "account_type": row["account_type"]
         })
 
